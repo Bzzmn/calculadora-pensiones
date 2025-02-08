@@ -62,7 +62,8 @@ uvicorn main:app --host 0.0.0.0 --port 8000
 POST /calculate_pension
 
 {
-    "current_age": 41,
+    "current_age_years": 41,
+    "current_age_months": 6,
     "retirement_age": 65,
     "current_balance": 28998190,
     "monthly_salary": 2564066,

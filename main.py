@@ -14,7 +14,8 @@ class OperationInput(BaseModel):
 
 # Definir el modelo de datos para el cálculo de pensiones
 class PensionInput(BaseModel):
-    current_age: float
+    current_age_years: int
+    current_age_months: int
     retirement_age: float
     current_balance: float
     monthly_salary: float
@@ -36,10 +37,13 @@ async def calculate_pension(input_data: PensionInput):
         # Validar género
         if input_data.gender.upper() not in ['M', 'F']:
             raise HTTPException(status_code=400, detail="Género debe ser 'M' o 'F'")
+            
+        # Convertir años y meses a edad decimal
+        current_age = input_data.current_age_years + (input_data.current_age_months / 12)
 
         # Calcular sistema pre-reforma
         final_balance_pre, pension_pre, worker_total_pre, employer_total_pre, sis_total_pre, returns_pre = calculate_pension_pre_reform(
-            input_data.current_age,
+            current_age,
             input_data.retirement_age,
             input_data.current_balance,
             input_data.monthly_salary,
@@ -53,7 +57,7 @@ async def calculate_pension(input_data: PensionInput):
         (final_balance_post, pension_post, total_pension_post, additional_pension_post,
          fapp_balance, monthly_bspa, sis_total_post, women_comp_total, worker_total_post, 
          employer_total_post, returns_post) = calculate_pension_post_reform(
-            input_data.current_age,
+            current_age,
             input_data.retirement_age,
             input_data.current_balance,
             input_data.monthly_salary,

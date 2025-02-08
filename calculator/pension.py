@@ -127,6 +127,11 @@ def calculate_pension_pre_reform(current_age: float,
     """
     Calcula el saldo acumulado y la pensión mensual estimada bajo el sistema pre-reforma.
     Sólo se acumula el aporte del trabajador (10% del sueldo); el 1.5% del empleador va al SIS.
+    
+    Args:
+        current_age: Edad actual en formato decimal (años + meses/12)
+        retirement_age: Edad de jubilación
+        ...
     """
     # Estimar los aportes históricos del trabajador (asumiendo que comenzó a los 25 años)
     years_contributed = current_age - 25 if current_age > 25 else 0
@@ -183,13 +188,11 @@ def calculate_pension_post_reform(current_age: float,
                                   equivalent_fund_rate: float) -> tuple[float, float, float, float, float, float, float, float, float, float, float]:
     """
     Calcula el saldo acumulado y la pensión mensual estimada bajo el sistema post-reforma.
-    Se acumulan:
-      - El aporte del trabajador (10% del sueldo) en la cuenta individual.
-      - Aporte adicional del empleador, que se introduce gradualmente (hasta 7% extra),
-        distribuido de la siguiente forma:
-            • SIS/compensación para mujeres: según f_compensacion_mujeres (no se acumula).
-            • Aporte directo a la cuenta individual: según f_individual_total (la diferencia extra sobre el 10%).
-            • Aporte a FAPP: según f_FAPP_target.
+    
+    Args:
+        current_age: Edad actual en formato decimal (años + meses/12)
+        retirement_age: Edad de jubilación
+        ...
     """
     # Estimar los aportes históricos del trabajador (asumiendo que comenzó a los 25 años)
     years_contributed = current_age - 25 if current_age > 25 else 0
@@ -295,13 +298,15 @@ def calculate_pension_post_reform(current_age: float,
 
 def main():
     # Parámetros de ejemplo:
-    current_age = 41             # Edad actual (años)
+    current_age_years = 41      # Años
+    current_age_months = 6      # Meses
+    current_age = current_age_years + (current_age_months / 12)  # Convertir a formato decimal
     retirement_age = 65          # Edad de jubilación (años)
-    current_balance = 28998190 # Saldo actual en cuenta individual (pesos)
-    monthly_salary = 2564066   # Sueldo bruto mensual (pesos)
+    current_balance = 28998190   # Saldo actual en cuenta individual (pesos)
+    monthly_salary = 2564066     # Sueldo bruto mensual (pesos)
     worker_rate = 0.10           # Aporte del trabajador: 10%
-    annual_interest_rate = 0.0311  # Rendimiento anual: 3.11% de acuerdo a rendimientos historicos de fondos de pensiones y tasa implicita de rentas vitalicias.
-    salary_growth_rate = 0.0125  # Crecimiento salarial anual: 1.25% de acuerdo a estimacion OCDE
+    annual_interest_rate = 0.0311  # Rendimiento anual: 3.11%
+    salary_growth_rate = 0.0125  # Crecimiento salarial anual: 1.25%
     equivalent_fund_rate = 0.0391  # Rendimiento anual del Fondo equivalente FAPP
     gender = 'F'                 # 'M' para hombre, 'F' para mujer
 
