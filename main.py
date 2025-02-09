@@ -1,7 +1,14 @@
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from typing import Optional
-from calculator.pension import calculate_pension_pre_reform, calculate_pension_post_reform
+from calculator.pension import (
+    calculate_pension_pre_reform, 
+    calculate_pension_post_reform,
+    WORKER_RATE,
+    ANNUAL_INTEREST_RATE,
+    SALARY_GROWTH_RATE,
+    EQUIVALENT_FUND_RATE
+)
 
 # Crear la instancia de FastAPI
 app = FastAPI()
@@ -19,10 +26,6 @@ class PensionInput(BaseModel):
     retirement_age: float
     current_balance: float
     monthly_salary: float
-    worker_rate: float = 0.10
-    annual_interest_rate: float = 0.0311
-    salary_growth_rate: float = 0.0125
-    equivalent_fund_rate: float = 0.0391
     gender: str
 
 # Endpoint de bienvenida
@@ -34,22 +37,17 @@ async def root():
 @app.post("/calculate_pension")
 async def calculate_pension(input_data: PensionInput):
     try:
-        # Validar género
         if input_data.gender.upper() not in ['M', 'F']:
             raise HTTPException(status_code=400, detail="Género debe ser 'M' o 'F'")
             
-        # Convertir años y meses a edad decimal
         current_age = input_data.current_age_years + (input_data.current_age_months / 12)
 
-        # Calcular sistema pre-reforma
+        # Calcular sistema pre-reforma usando constantes
         final_balance_pre, pension_pre, worker_total_pre, employer_total_pre, sis_total_pre, returns_pre = calculate_pension_pre_reform(
             current_age,
             input_data.retirement_age,
             input_data.current_balance,
             input_data.monthly_salary,
-            input_data.worker_rate,
-            input_data.annual_interest_rate,
-            input_data.salary_growth_rate,
             input_data.gender
         )
 
@@ -61,9 +59,6 @@ async def calculate_pension(input_data: PensionInput):
             input_data.retirement_age,
             input_data.current_balance,
             input_data.monthly_salary,
-            input_data.worker_rate,
-            input_data.annual_interest_rate,
-            input_data.salary_growth_rate,
             input_data.gender,
             input_data.equivalent_fund_rate
         )

@@ -1,3 +1,10 @@
+# Constantes del sistema
+WORKER_RATE = 0.10                # Aporte del trabajador: 10%
+ANNUAL_INTEREST_RATE = 0.0311     # Rendimiento anual: 3.11% según rendimientos históricos
+SALARY_GROWTH_RATE = 0.0125       # Crecimiento salarial anual: 1.25% según OCDE
+EQUIVALENT_FUND_RATE = 0.0391     # Rendimiento anual del Fondo equivalente FAPP: 3.91%
+PENSION_MINIMA = 214000           # Pensión mínima garantizada
+
 def effective_additional_rate(month_index: int) -> float:
     """
     Devuelve la tasa extra del empleador, en fracción, según el mes (m=0: febrero 2025).
@@ -120,9 +127,6 @@ def calculate_pension_pre_reform(current_age: float,
                                  retirement_age: float,
                                  current_balance: float,
                                  monthly_salary: float,
-                                 worker_rate: float,
-                                 annual_interest_rate: float,
-                                 salary_growth_rate: float,
                                  gender: str) -> tuple[float, float, float, float, float, float]:
     """
     Calcula el saldo acumulado y la pensión mensual estimada bajo el sistema pre-reforma.
@@ -131,13 +135,15 @@ def calculate_pension_pre_reform(current_age: float,
     Args:
         current_age: Edad actual en formato decimal (años + meses/12)
         retirement_age: Edad de jubilación
-        ...
+        current_balance: Saldo actual en cuenta individual
+        monthly_salary: Sueldo bruto mensual
+        gender: Género ('M' o 'F')
     """
-    # Estimar los aportes históricos del trabajador (asumiendo que comenzó a los 25 años)
+    # Usar constantes en lugar de parámetros
     years_contributed = current_age - 25 if current_age > 25 else 0
-    estimated_historical_contribution = current_balance / ((1 + annual_interest_rate) ** years_contributed)
+    estimated_historical_contribution = current_balance / ((1 + ANNUAL_INTEREST_RATE) ** years_contributed)
     
-    monthly_interest_rate = (1 + annual_interest_rate) ** (1/12) - 1
+    monthly_interest_rate = (1 + ANNUAL_INTEREST_RATE) ** (1/12) - 1
     # Calcular la expectativa de vida en base al género y, por ende, los años de pensión:
     life_expectancy = 86.6 if gender.upper() == 'M' else 90.8
     pension_annuity_years = life_expectancy - retirement_age
@@ -150,7 +156,7 @@ def calculate_pension_pre_reform(current_age: float,
     total_sis = 0
     
     for month in range(months_to_retirement):
-        contribution = monthly_salary * worker_rate
+        contribution = monthly_salary * WORKER_RATE
         sis = monthly_salary * 0.015  # 1.5% para SIS
         
         total_worker_contribution += contribution 
@@ -159,12 +165,11 @@ def calculate_pension_pre_reform(current_age: float,
         
         balance = (balance + contribution) * (1 + monthly_interest_rate)
         if month % 6 == 5:
-            monthly_salary *= (1 + salary_growth_rate)
+            monthly_salary *= (1 + SALARY_GROWTH_RATE)
     
     final_balance = balance
     total_pension_months = int(pension_annuity_years * 12)
     monthly_pension = final_balance / total_pension_months
-    PENSION_MINIMA = 214000
     if monthly_pension < PENSION_MINIMA:
         monthly_pension = PENSION_MINIMA
 
@@ -181,26 +186,24 @@ def calculate_pension_post_reform(current_age: float,
                                   retirement_age: float,
                                   current_balance: float,
                                   monthly_salary: float,
-                                  worker_rate: float,
-                                  annual_interest_rate: float,
-                                  salary_growth_rate: float,
-                                  gender: str,
-                                  equivalent_fund_rate: float) -> tuple[float, float, float, float, float, float, float, float, float, float, float]:
+                                  gender: str) -> tuple[float, float, float, float, float, float, float, float, float, float, float]:
     """
     Calcula el saldo acumulado y la pensión mensual estimada bajo el sistema post-reforma.
     
     Args:
         current_age: Edad actual en formato decimal (años + meses/12)
         retirement_age: Edad de jubilación
-        ...
+        current_balance: Saldo actual en cuenta individual
+        monthly_salary: Sueldo bruto mensual
+        gender: Género ('M' o 'F')
     """
-    # Estimar los aportes históricos del trabajador (asumiendo que comenzó a los 25 años)
+    # Usar constantes en lugar de parámetros
     years_contributed = current_age - 25 if current_age > 25 else 0
-    estimated_historical_contribution = current_balance / ((1 + annual_interest_rate) ** years_contributed)
+    estimated_historical_contribution = current_balance / ((1 + ANNUAL_INTEREST_RATE) ** years_contributed)
     
     # Convertir tasas anuales a mensuales
-    monthly_interest_rate = (1 + annual_interest_rate) ** (1/12) - 1
-    monthly_fapp_rate = (1 + equivalent_fund_rate) ** (1/12) - 1  # Tasa mensual para FAPP
+    monthly_interest_rate = (1 + ANNUAL_INTEREST_RATE) ** (1/12) - 1
+    monthly_fapp_rate = (1 + EQUIVALENT_FUND_RATE) ** (1/12) - 1  # Tasa mensual para FAPP
     months_to_retirement = int((retirement_age - current_age) * 12)
     life_expectancy = 86.6 if gender.upper() == 'M' else 90.8
     pension_annuity_years = life_expectancy - retirement_age
@@ -239,7 +242,7 @@ def calculate_pension_post_reform(current_age: float,
         balance_FAPP = (balance_FAPP + fapp_contribution) * (1 + monthly_fapp_rate)  # Usa tasa FAPP
         
         if month % 6 == 5:
-            monthly_salary *= (1 + salary_growth_rate)
+            monthly_salary *= (1 + SALARY_GROWTH_RATE)
     
     final_balance_individual = balance_individual
     total_pension_months = int(pension_annuity_years * 12)
@@ -304,10 +307,6 @@ def main():
     retirement_age = 65          # Edad de jubilación (años)
     current_balance = 28998190   # Saldo actual en cuenta individual (pesos)
     monthly_salary = 2564066     # Sueldo bruto mensual (pesos)
-    worker_rate = 0.10           # Aporte del trabajador: 10%
-    annual_interest_rate = 0.0311  # Rendimiento anual: 3.11%
-    salary_growth_rate = 0.0125  # Crecimiento salarial anual: 1.25%
-    equivalent_fund_rate = 0.0391  # Rendimiento anual del Fondo equivalente FAPP
     gender = 'F'                 # 'M' para hombre, 'F' para mujer
 
     print("\n=== Sistema Pre-reforma ===")
@@ -316,9 +315,6 @@ def main():
         retirement_age,
         current_balance,
         monthly_salary,
-        worker_rate,
-        annual_interest_rate,
-        salary_growth_rate,
         gender
     )
     
@@ -345,11 +341,7 @@ def main():
         retirement_age,
         current_balance,
         monthly_salary,
-        worker_rate,
-        annual_interest_rate,
-        salary_growth_rate,
-        gender,
-        equivalent_fund_rate
+        gender
     )
     print(f"Saldo acumulado en cuenta individual: {final_balance_post:,.0f} pesos")
     print(f"Aporte al seguro de invalidez y sobrevivencia: {sis_total_post:,.0f} pesos")
