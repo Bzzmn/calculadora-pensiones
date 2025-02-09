@@ -1,9 +1,16 @@
+from datetime import datetime, date
+
 # Constantes del sistema
-WORKER_RATE = 0.10                # Aporte del trabajador: 10%
-ANNUAL_INTEREST_RATE = 0.0311     # Rendimiento anual: 3.11% según rendimientos históricos
-SALARY_GROWTH_RATE = 0.0125       # Crecimiento salarial anual: 1.25% según OCDE
-EQUIVALENT_FUND_RATE = 0.0391     # Rendimiento anual del Fondo equivalente FAPP: 3.91%
-PENSION_MINIMA = 214000           # Pensión mínima garantizada
+REFORM_START_DATE = date(2025, 2, 1)  # Fecha de inicio de la reforma
+WORKER_RATE = 0.10                    # Aporte del trabajador: 10%
+ANNUAL_INTEREST_RATE = 0.0311         # Rendimiento anual: 3.11%
+SALARY_GROWTH_RATE = 0.0125           # Crecimiento salarial anual: 1.25%
+EQUIVALENT_FUND_RATE = 0.0391         # Rendimiento anual del Fondo equivalente FAPP: 3.91%
+PENSION_MINIMA = 214000               # Pensión mínima garantizada
+INFLATION_RATE = 0.03      
+
+monthly_interest_rate = (1 + ANNUAL_INTEREST_RATE) ** (1/12) - 1  
+monthly_equivalent_fund_rate = (1 + EQUIVALENT_FUND_RATE) ** (1/12) - 1
 
 def effective_additional_rate(month_index: int) -> float:
     """
@@ -118,16 +125,43 @@ def f_FAPP_target(month_index: int) -> float:
         return 0.015 - ((month_index - 241) / (361 - 241)) * 0.015
     else:
         return 0.0
+    
+def get_months_from_reform_start() -> int:
+    """
+    Calcula cuántos meses han pasado desde el inicio de la reforma (febrero 2025)
+    hasta la fecha actual.
+    """
+    today = date.today()
+    if today < REFORM_START_DATE:
+        return 0
+    
+    months = (today.year - REFORM_START_DATE.year) * 12 + (today.month - REFORM_START_DATE.month)
+    return max(0, months)
 
 #########################
 # Sistema Pre-reforma  #
 #########################
 
+def calculate_future_value(present_value: float, years: float, inflation_rate: float = INFLATION_RATE) -> float:
+    """
+    Calcula el valor futuro de un monto considerando la inflación.
+    
+    Args:
+        present_value: Valor presente del monto
+        years: Años hasta el momento futuro
+        inflation_rate: Tasa de inflación anual (por defecto INFLATION_RATE)
+    
+    Returns:
+        float: Valor futuro del monto
+    """
+    return present_value * (1 + inflation_rate) ** years
+
+
 def calculate_pension_pre_reform(current_age: float,
                                  retirement_age: float,
                                  current_balance: float,
                                  monthly_salary: float,
-                                 gender: str) -> tuple[float, float, float, float, float, float]:
+                                 gender: str) -> tuple[float, ...]:
     """
     Calcula el saldo acumulado y la pensión mensual estimada bajo el sistema pre-reforma.
     Sólo se acumula el aporte del trabajador (10% del sueldo); el 1.5% del empleador va al SIS.
@@ -139,129 +173,171 @@ def calculate_pension_pre_reform(current_age: float,
         monthly_salary: Sueldo bruto mensual
         gender: Género ('M' o 'F')
     """
-    # Usar constantes en lugar de parámetros
-    years_contributed = current_age - 25 if current_age > 25 else 0
-    estimated_historical_contribution = current_balance / ((1 + ANNUAL_INTEREST_RATE) ** years_contributed)
-    
-    monthly_interest_rate = (1 + ANNUAL_INTEREST_RATE) ** (1/12) - 1
     # Calcular la expectativa de vida en base al género y, por ende, los años de pensión:
     life_expectancy = 86.6 if gender.upper() == 'M' else 90.8
-    pension_annuity_years = life_expectancy - retirement_age
+    total_pension_months = int((life_expectancy - retirement_age) * 12)
     months_to_retirement = int((retirement_age - current_age) * 12)
+    
+    # 2. Inicialización de acumuladores
     balance = current_balance
-
-    # Calcular totales
-    total_worker_contribution = estimated_historical_contribution  # Comenzamos con los aportes históricos estimados
+    accumulated_returns = 0  # Nuevo acumulador para rentabilidad
+    total_worker_contribution = 0
     total_employer_contribution = 0
     total_sis = 0
-    
+
+    # 3. Acumulación mensual hasta jubilación
     for month in range(months_to_retirement):
+        # Aporte mensual del trabajador (10%)
         contribution = monthly_salary * WORKER_RATE
-        sis = monthly_salary * 0.015  # 1.5% para SIS
+        total_worker_contribution += contribution
         
-        total_worker_contribution += contribution 
-        total_employer_contribution += sis
+        # Calcular rentabilidad del mes
+        monthly_return = (balance + contribution) * monthly_interest_rate
+        accumulated_returns += monthly_return
+        
+        # Actualización del saldo incluyendo rentabilidad
+        balance = (balance + contribution) * (1 + monthly_interest_rate)
+        
+        # SIS (1.5% del empleador)
+        sis = monthly_salary * 0.015
         total_sis += sis
         
-        balance = (balance + contribution) * (1 + monthly_interest_rate)
+        # Actualización del sueldo cada 6 meses
         if month % 6 == 5:
             monthly_salary *= (1 + SALARY_GROWTH_RATE)
     
-    final_balance = balance
-    total_pension_months = int(pension_annuity_years * 12)
-    monthly_pension = final_balance / total_pension_months
-    if monthly_pension < PENSION_MINIMA:
-        monthly_pension = PENSION_MINIMA
+    # 4. Estimar componentes del saldo actual (current_balance)
+    years_contributed = current_age - 25 if current_age > 25 else 0
+    initial_estimated_returns = current_balance - (current_balance / (1 + ANNUAL_INTEREST_RATE) ** years_contributed)
+    initial_worker_contribution = current_balance - initial_estimated_returns
+    
+    # 5. Estimar el SIS histórico basado en la contribución histórica del trabajador
+    # Si 10% del sueldo = initial_worker_contribution, entonces el sueldo total histórico fue:
+    historical_total_salary = initial_worker_contribution / WORKER_RATE
+    # El SIS histórico sería el 1.5% de ese sueldo total
+    historical_sis = historical_total_salary * 0.015
+    
+    # 6. Actualizar totales finales
+    total_worker_contribution += initial_worker_contribution  # Agregar contribución histórica
+    total_sis += historical_sis  # Agregar SIS histórico # Todo el aporte del empleador va al SIS
+    accumulated_returns += initial_estimated_returns  # Agregar rentabilidad histórica
 
-    # Calcular la rentabilidad total (diferencia entre saldo final y aportes totales)
-    total_returns = final_balance - total_worker_contribution
+    # Calcular la pensión mensual
+    monthly_pension = balance / total_pension_months
 
-    return final_balance, monthly_pension, total_worker_contribution, total_employer_contribution, total_sis, total_returns
+
+    # Calcular si aplica PGU
+    if monthly_pension < 214000:
+        monthly_pension = 214000
+        pgu_applied = True
+    else:
+        pgu_applied = False
+
+    return (balance,                    # saldo_acumulado
+            monthly_pension,  # pension_mensual
+            total_worker_contribution,   # aporte_trabajador (incluye histórico)
+            total_employer_contribution, # aporte_empleador (todo va a SIS)
+            total_sis,                  # aporte_sis (incluye histórico)
+            accumulated_returns,       # rentabilidad_acumulada (incluye histórica)
+            pgu_applied)              # indica si se aplicó PGU
 
 #########################
 # Sistema Post-reforma #
 #########################
 
 def calculate_pension_post_reform(current_age: float,
-                                  retirement_age: float,
-                                  current_balance: float,
-                                  monthly_salary: float,
-                                  gender: str) -> tuple[float, float, float, float, float, float, float, float, float, float, float]:
+                                retirement_age: float,
+                                current_balance: float,
+                                monthly_salary: float,
+                                gender: str) -> tuple[float, ...]:
     """
-    Calcula el saldo acumulado y la pensión mensual estimada bajo el sistema post-reforma.
-    
-    Args:
-        current_age: Edad actual en formato decimal (años + meses/12)
-        retirement_age: Edad de jubilación
-        current_balance: Saldo actual en cuenta individual
-        monthly_salary: Sueldo bruto mensual
-        gender: Género ('M' o 'F')
+    Calcula considerando el momento actual en relación a feb 2025
     """
-    # Usar constantes en lugar de parámetros
-    years_contributed = current_age - 25 if current_age > 25 else 0
-    estimated_historical_contribution = current_balance / ((1 + ANNUAL_INTEREST_RATE) ** years_contributed)
-    
-    # Convertir tasas anuales a mensuales
-    monthly_interest_rate = (1 + ANNUAL_INTEREST_RATE) ** (1/12) - 1
-    monthly_fapp_rate = (1 + EQUIVALENT_FUND_RATE) ** (1/12) - 1  # Tasa mensual para FAPP
+    # Obtener el mes actual en relación a febrero 2025
+    current_month_index = get_months_from_reform_start()
     months_to_retirement = int((retirement_age - current_age) * 12)
     life_expectancy = 86.6 if gender.upper() == 'M' else 90.8
-    pension_annuity_years = life_expectancy - retirement_age
+    total_pension_months = int((life_expectancy - retirement_age) * 12)
 
-    balance_individual = current_balance
-    balance_FAPP = 0.0
-    total_worker_contribution = estimated_historical_contribution
+    # 1. Inicialización de acumuladores para cálculos futuros
+    balance = current_balance
+    balance_FAPP = 0
+    accumulated_returns = 0
+    total_worker_contribution = 0
     total_employer_contribution = 0
     total_sis = 0
     total_women_compensation = 0
-    total_FAPP = 0  # Inicializar total_FAPP
+    accumulated_FAPP_contribution = 0
 
+    # 2. Acumulación mensual hasta jubilación
     for month in range(months_to_retirement):
-        # Aporte total a cuenta individual según función objetivo
-        individual_contribution = monthly_salary * f_individual_total(month)
-        total_worker_contribution += individual_contribution
-
-        # SIS (1.5% del sueldo, pagado por el trabajador)
-        sis_contribution = monthly_salary * 0.015
-        total_sis += sis_contribution
-
-        # Aporte compensación mujeres (según función)
-        women_comp = monthly_salary * f_compensacion_mujeres(month)
-        total_women_compensation += women_comp
-
-        # Aporte FAPP (según función)
-        fapp_contribution = monthly_salary * f_FAPP_target(month)
-        total_FAPP += fapp_contribution
+        reform_month_index = current_month_index + month
         
-        # Total aporte empleador (compensación + FAPP)
-        employer_contribution = women_comp + fapp_contribution + sis_contribution
-        total_employer_contribution += employer_contribution
+        # Aplicar tasas según el mes correspondiente desde feb 2025
+        individual_rate = f_individual_total(reform_month_index)
+        women_comp_rate = f_compensacion_mujeres(reform_month_index)
+        fapp_rate = f_FAPP_target(reform_month_index)
+        
+        # Calcular aportes mensuales
+        contribution = monthly_salary * individual_rate
+        worker_contribution = monthly_salary * WORKER_RATE
+        sis_contribution = monthly_salary * 0.015
+        women_comp = monthly_salary * women_comp_rate
+        fapp_contribution = monthly_salary * fapp_rate
+        accumulated_FAPP_contribution += fapp_contribution
 
-        # Actualización de saldos con tasas diferentes
-        balance_individual = (balance_individual + individual_contribution) * (1 + monthly_interest_rate)
-        balance_FAPP = (balance_FAPP + fapp_contribution) * (1 + monthly_fapp_rate)  # Usa tasa FAPP
+        # Calcular rentabilidad del mes
+        monthly_return = (balance + contribution) * monthly_interest_rate
+        accumulated_returns += monthly_return
+        
+        # Actualizar acumuladores
+        total_worker_contribution += worker_contribution
+        total_employer_contribution += (individual_rate - WORKER_RATE) * monthly_salary
+        total_sis += sis_contribution
+        total_women_compensation += women_comp
+        
+        # Actualizar saldos incluyendo rentabilidad
+        balance = (balance + contribution) * (1 + monthly_interest_rate)
+        balance_FAPP = (balance_FAPP + fapp_contribution) * (1 + monthly_equivalent_fund_rate)
+
         
         if month % 6 == 5:
             monthly_salary *= (1 + SALARY_GROWTH_RATE)
-    
-    final_balance_individual = balance_individual
-    total_pension_months = int(pension_annuity_years * 12)
-    monthly_pension_female = final_balance_individual / total_pension_months
 
-    # Calcular pensión como mujer
-    monthly_pension_female = final_balance_individual / total_pension_months
+    # 3. Estimar componentes del saldo actual (current_balance)
+    years_contributed = current_age - 25 if current_age > 25 else 0
+    initial_estimated_returns = current_balance - (current_balance / (1 + ANNUAL_INTEREST_RATE) ** years_contributed)
+    initial_worker_contribution = current_balance - initial_estimated_returns
     
+    # 4. Estimar el SIS histórico y otros aportes históricos
+    historical_total_salary = initial_worker_contribution / WORKER_RATE
+    historical_sis = historical_total_salary * 0.015
+    
+    # 5. Actualizar totales finales
+    total_worker_contribution += initial_worker_contribution
+    total_sis += historical_sis
+   
+
+    # Calcular los meses de pensión para ambos géneros al inicio de la función
+    life_expectancy_male = 86.6
+    life_expectancy_female = 90.8
+    pension_annuity_years_male = life_expectancy_male - retirement_age
+    pension_annuity_years_female = life_expectancy_female - retirement_age
+    total_pension_months_male = int(pension_annuity_years_male * 12)
+    total_pension_months_female = int(pension_annuity_years_female * 12)
+
     # Si es mujer, calcular también como si fuera hombre
     additional_pension = 0
+    monthly_BSPA = balance_FAPP / 240
+
     if gender.upper() == 'F':
-        # Recalcular con expectativa de vida masculina
-        pension_annuity_years_male = 86.6 - retirement_age
-        total_pension_months_male = int(pension_annuity_years_male * 12)
-        monthly_pension_male = final_balance_individual / total_pension_months_male
-        
         # Calcular pensión adicional (diferencia con mínimo de 10000)
-        pension_difference = monthly_pension_male - monthly_pension_female
+        pension_difference = (balance / total_pension_months_male) - (balance / total_pension_months_female)
         additional_pension = max(pension_difference, 10000)
+        monthly_pension = (balance / total_pension_months_female)
+    else:
+        monthly_pension = (balance / total_pension_months_male)
+        additional_pension = 0
     
     # Aplicar PGU según corresponda
     def get_pgu_amount(age: float, months_from_start: int) -> float:
@@ -279,25 +355,34 @@ def calculate_pension_post_reform(current_age: float,
             return 214000
 
     # Calcular la PGU correspondiente (considerando 6 meses desde feb 2025)
-    months_from_reform_start = 6  # Asumiendo que estamos calculando desde la implementación inicial
-    pgu_amount = get_pgu_amount(retirement_age, months_from_reform_start)
+    pgu_amount = get_pgu_amount(retirement_age, current_month_index)
     
-    if monthly_pension_female < pgu_amount:
-        monthly_pension_female = pgu_amount
-    
-    # Calcular el bono de seguridad previsional amortizable (BSPA)
-    monthly_BSPA = balance_FAPP / 240  # Distribuir el FAPP en 240 cuotas mensuales
+    if monthly_pension < pgu_amount:
+        monthly_pension = pgu_amount
+        pgu_applied = True
+    else:
+        pgu_applied = False
+
     
     # Calcular pensión total incluyendo BSPA
-    total_pension = monthly_pension_female + additional_pension + monthly_BSPA
+    total_pension = monthly_pension + additional_pension + monthly_BSPA
+
 
     # Calcular la rentabilidad total de la cuenta individual
-    total_direct_contributions = total_worker_contribution + total_employer_contribution - total_sis - total_women_compensation
-    total_returns = final_balance_individual - total_direct_contributions
+    total_returns = accumulated_returns + initial_estimated_returns
 
-    return (final_balance_individual, monthly_pension_female, total_pension, additional_pension,
-            balance_FAPP, monthly_BSPA, total_sis, total_women_compensation, total_worker_contribution, 
-            total_employer_contribution, total_returns)
+    return (balance,                  # saldo_cuenta_individual
+            total_pension,            # pension_total
+            additional_pension,       # pension_adicional
+            balance_FAPP,            # balance_fapp
+            monthly_BSPA,            # bono_seguridad_previsional
+            total_sis,               # aporte_sis
+            total_women_compensation, # aporte_compensacion_expectativa_vida
+            total_worker_contribution,# aporte_trabajador
+            total_employer_contribution, # aporte_empleador
+            total_returns,           # rentabilidad_acumulada
+            pgu_applied)             # pgu_aplicada
+
 
 def main():
     # Parámetros de ejemplo:

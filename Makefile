@@ -8,7 +8,7 @@ PROD_PORT = 80
 .PHONY: build run-dev run-prod stop clean all-dev all-prod
 
 # Construir la imagen
-build:
+build: compile
 	docker build -t $(IMAGE_NAME) .
 
 # Ejecutar el contenedor en desarrollo
@@ -32,7 +32,7 @@ stop:
 	docker rm $(CONTAINER_NAME) || true
 
 # Limpiar imágenes y contenedores
-clean: stop
+clean: stop clean-build
 	docker rmi $(IMAGE_NAME) || true
 
 # Reconstruir y reiniciar para desarrollo
@@ -47,4 +47,14 @@ logs:
 
 # Estado del contenedor
 status:
-	docker ps -a | grep $(CONTAINER_NAME) 
+	docker ps -a | grep $(CONTAINER_NAME)
+
+# Compilar el código
+compile:
+	python setup.py build_ext --inplace
+
+# Agregar clean-build para limpiar archivos de compilación
+clean-build:
+	rm -rf build/
+	rm -f calculator/*.so
+	rm -f calculator/*.c
