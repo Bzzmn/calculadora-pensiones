@@ -16,6 +16,11 @@ run-dev:
 	docker run -d \
 		--name $(CONTAINER_NAME) \
 		-p $(DEV_PORT):80 \
+		-v $(PWD)/.env:/app/.env \
+		-v $(PWD)/main.py:/app/main.py \
+		-v $(PWD)/config.py:/app/config.py \
+		-v $(PWD)/utils:/app/utils \
+		-e ENVIRONMENT=development \
 		$(IMAGE_NAME)
 
 # Ejecutar el contenedor en producción
