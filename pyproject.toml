@@ -6,10 +6,16 @@ readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
     "cython>=0.29.24",
-    "fastapi>=0.68.0,<0.69.0",
+    "fastapi==0.104.1",
+    "fpdf==1.7.2",
+    "fpdf2>=2.8.2",
+    "motor==3.1.1",
     "numpy>=1.21.0",
-    "pydantic>=1.8.0,<2.0.0",
+    "pydantic[email]==2.5.2",
+    "pydantic-settings==2.1.0",
+    "pymongo==4.3.3",
+    "python-dotenv==1.0.0",
     "setuptools>=57.0.0",
-    "uvicorn>=0.15.0,<0.16.0",
+    "uvicorn==0.24.0",
     "wheel>=0.37.0",
 ]
