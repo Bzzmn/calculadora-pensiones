@@ -43,7 +43,7 @@ def get_email_template(nombre, unsubscribe_url):
                         Mi compromiso contigo es ofrecer contenido de calidad, actualizado cada mes y sin rodeos: información práctica que te ayude a ahorrar tiempo y aumentar tu productividad.
                     </p>
                     <p style="margin-bottom: 24px;">
-                        Quizás te preguntes si realmente puedo cumplir con mi promesa, dejame decirte que si estás leyendo esto, es porque logré captar tu atención, ganar tu confianza al entregarte algo valioso de forma gratuita, y ofrecerte un extra a cambio de tu suscripción.<br><br>Cada paso de este camino ha sido planificado cuidadosamente, aplicando técnicas de marketing digital, growth hacking, desarrollo web, comunicación, diseño e inteligencia artificial. Estos son los temas que me apasionan, y quiero que formes parte de este viaje.
+                        Si estás leyendo esto, es porque logré captar tu atención, ganar tu confianza al entregarte algo valioso de forma gratuita, y ofrecerte un extra a cambio de tu suscripción.<br><br>Cada paso de este camino ha sido planificado cuidadosamente, aplicando técnicas de marketing digital, growth hacking, desarrollo web, comunicación, diseño e inteligencia artificial. Estos son los temas que me apasionan, y quiero que formes parte de este viaje.
                     </p>
                     <p style="margin-bottom: 24px;">
                         Quédate, ponte cómodo y prepárate: ¡esto se va a poner muy interesante!
