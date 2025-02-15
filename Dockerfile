@@ -9,19 +9,14 @@ RUN apt-get update && apt-get install -y \
     python3-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Copiar archivos necesarios para la compilación
-COPY requirements.txt requirements-build.txt ./
-
-# Instalar Cython y otras dependencias de compilación
-RUN pip install --no-cache-dir -r requirements.txt \
-    && pip install --no-cache-dir Cython numpy
-
-# Copiar el código fuente
+# Copiar solo los archivos necesarios para la compilación
+COPY requirements.txt .
 COPY setup.py .
 COPY calculator/ ./calculator/
 
-# Compilar el código
-RUN python setup.py build_ext --inplace
+# Instalar dependencias y compilar
+RUN pip install --no-cache-dir -r requirements.txt \
+    && python setup.py build_ext --inplace
 
 # Runtime stage
 FROM python:3.9-slim
@@ -32,7 +27,7 @@ WORKDIR /app
 COPY --from=builder /app/calculator/*.so ./calculator/
 COPY --from=builder /app/calculator/__init__.py ./calculator/
 
-# Copiar el resto de los archivos de la aplicación
+# Copiar archivos de la aplicación
 COPY requirements.txt .
 COPY main.py .
 COPY config.py .

@@ -8,7 +8,7 @@ PROD_PORT = 80
 .PHONY: build run-dev run-prod stop clean all-dev all-prod
 
 # Construir la imagen
-build: compile
+build: update-requirements compile
 	docker build -t $(IMAGE_NAME) .
 
 # Ejecutar el contenedor en desarrollo
@@ -63,3 +63,8 @@ clean-build:
 	rm -rf build/
 	rm -f calculator/*.so
 	rm -f calculator/*.c
+
+# Actualizar requirements.txt desde pyproject.toml
+update-requirements:
+	pip install toml
+	python -c 'import toml; f = open("pyproject.toml"); p = toml.load(f); print("\n".join(p["project"]["dependencies"]))' > requirements.txt
