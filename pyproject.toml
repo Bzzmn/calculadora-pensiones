@@ -33,6 +33,7 @@ dependencies = [
     "pinecone-client>=5.0.1",
     "voyageai>=0.2.4",
     "pyjwt>=2.10.1",
+    "email-validator>=2.1.0",
 ]
 
 [tool.setuptools]
