@@ -4,7 +4,7 @@ fpdf==1.7.2
 fpdf2>=2.8.2
 motor==3.1.1
 numpy>=1.21.0
-pydantic[email]==2.5.2
+pydantic>=2.7.4,<3.0.0
 pydantic-settings==2.1.0
 pymongo==4.3.3
 python-dotenv==1.0.0
@@ -17,7 +17,7 @@ weasyprint>=64.0
 llama-index>=0.11.2
 openai>=1.61.1
 llama-index-embeddings-voyageai>=0.2.2
-langchain>=0.2.5
+langchain>=0.2.5,<0.3.0
 langchain-community>=0.2.5
 pinecone-client>=5.0.1
 voyageai>=0.2.4
