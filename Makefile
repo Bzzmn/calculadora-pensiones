@@ -56,7 +56,7 @@ status:
 
 # Compilar el código
 compile:
-	python setup.py build_ext --inplace
+	PYTHONPATH=$(PWD) python setup.py build_ext --inplace
 
 # Agregar clean-build para limpiar archivos de compilación
 clean-build:

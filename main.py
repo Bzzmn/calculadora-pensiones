@@ -1,3 +1,4 @@
+import os
 from fastapi import FastAPI, HTTPException, Depends, Path
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, EmailStr
@@ -13,12 +14,13 @@ from calculator.pension_core import (
     INFLATION_RATE
 )
 from motor.motor_asyncio import AsyncIOMotorClient
-from datetime import datetime
+from datetime import datetime, timedelta
 from uuid import UUID
 from config import settings
 from utils.pdf_generator import PensionPDFGenerator
 from utils.email_template import get_email_template
 from utils.email_sender import EmailSender
+import jwt
 
 # Crear la instancia de FastAPI con el prefijo /api
 app = FastAPI(
@@ -102,7 +104,6 @@ async def save_calculation_result(collection, session_id: str, calculation_resul
 
 # Endpoint para calcular pensiones
 @app.post("/api/calculate_pension")
-@app.post("/calculate_pension")
 async def calculate_pension(input_data: PensionInput):
     try:
         if input_data.gender.upper() not in ['M', 'F']:
@@ -123,7 +124,7 @@ async def calculate_pension(input_data: PensionInput):
         )
 
         # Calcular sistema post-reforma
-        (final_balance_post, total_pension_post, additional_pension_post,
+        (final_balance_post, monthly_pension_post, additional_pension_post,
          fapp_balance, monthly_bspa, sis_total_post, women_comp_total, 
          worker_total_post, employer_total_post, returns_post,
          pgu_applied_post) = calculate_pension_post_reform(
@@ -167,9 +168,9 @@ async def calculate_pension(input_data: PensionInput):
                 "aporte_compensacion_expectativa_vida": women_comp_total,
                 "balance_fapp": fapp_balance,
                 "bono_seguridad_previsional": monthly_bspa,
-                "pension_mensual_base": total_pension_post,
+                "pension_mensual_base": monthly_pension_post,
                 "pension_adicional_compensacion": additional_pension_post,
-                "pension_total": total_pension_post + additional_pension_post + monthly_bspa,
+                "pension_total": monthly_pension_post + additional_pension_post + monthly_bspa,
                 "pgu_aplicada": pgu_applied_post
             },
             "pension_objetivo": {
@@ -182,7 +183,7 @@ async def calculate_pension(input_data: PensionInput):
                 "brecha_mensual_post_reforma": max(0, calculate_future_value(
                     input_data.ideal_pension,
                     input_data.retirement_age - current_age
-                ) - (total_pension_post + additional_pension_post + monthly_bspa))
+                ) - (monthly_pension_post + additional_pension_post + monthly_bspa))
             },
             "metadata": {
                 "nombre": input_data.name,
@@ -208,7 +209,7 @@ async def calculate_pension(input_data: PensionInput):
             input_data.retirement_age - current_age
         )
         
-        pension_total_post = total_pension_post + additional_pension_post + monthly_bspa
+        pension_total_post = monthly_pension_post + additional_pension_post + monthly_bspa
         brecha_mensual = max(0, valor_futuro - pension_total_post)
 
         # Guardar resultado completo en MongoDB
@@ -231,8 +232,8 @@ async def calculate_pension(input_data: PensionInput):
                 }
             },
             "post_reforma": {
-                "pension_total": round(total_pension_post + additional_pension_post + monthly_bspa, 2),
-                "pension_mensual_base": round(total_pension_post, 2),
+                "pension_total": round(monthly_pension_post + additional_pension_post + monthly_bspa, 2),
+                "pension_mensual_base": round(monthly_pension_post, 2),
                 "pension_adicional_compensacion": round(additional_pension_post, 2),
                 "bono_seguridad_previsional": round(monthly_bspa, 2),
                 "saldo_acumulado": {
@@ -250,7 +251,7 @@ async def calculate_pension(input_data: PensionInput):
                 "brecha_mensual_post_reforma": round(max(0, calculate_future_value(
                     input_data.ideal_pension,
                     input_data.retirement_age - current_age
-                ) - (total_pension_post + additional_pension_post + monthly_bspa)), 2)
+                ) - (monthly_pension_post + additional_pension_post + monthly_bspa)), 2)
             },
             "metadata": {
                 "expectativa_vida": round(life_expectancy, 2),
@@ -263,34 +264,6 @@ async def calculate_pension(input_data: PensionInput):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-# Mantener el endpoint original de operaciones básicas
-@app.post("/calculate")
-async def calculate(input_data: OperationInput):
-    try:
-        if input_data.operation == "suma":
-            result = input_data.number1 + input_data.number2
-        elif input_data.operation == "resta":
-            result = input_data.number1 - input_data.number2
-        elif input_data.operation == "multiplicacion":
-            result = input_data.number1 * input_data.number2
-        elif input_data.operation == "division":
-            if input_data.number2 == 0:
-                raise HTTPException(status_code=400, detail="No se puede dividir por cero")
-            result = input_data.number1 / input_data.number2
-        else:
-            raise HTTPException(status_code=400, detail="Operación no válida")
-        
-        return {
-            "operation": input_data.operation,
-            "number1": input_data.number1,
-            "number2": input_data.number2,
-            "result": result
-        }
-    
-    except HTTPException as e:
-        raise e
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/get_session/{session_id}")
 async def get_session(session_id: str = Path(..., title="Session ID")):
@@ -355,7 +328,7 @@ class EmailRequest(BaseModel):
     email: EmailStr
     optin_comercial: bool
 
-@app.post("/api/send_pdf")
+@app.post("/api/send_email")
 async def send_pdf(request: EmailRequest):
     try:
         # Obtener datos de la sesión
@@ -365,54 +338,130 @@ async def send_pdf(request: EmailRequest):
         if not session_data:
             raise HTTPException(status_code=404, detail="Session not found")
 
+        # Generar PDF en memoria
+        pdf_generator = PensionPDFGenerator()
+        pdf_content = pdf_generator.generate_pdf_bytes(session_data)
+
         # Obtener el nombre desde los datos de la sesión
         nombre = session_data["metadata"]["nombre"]
         if not nombre:
-            nombre = "Usuario"  # Valor por defecto si no hay nombre
+            nombre = "Usuario"
 
-        # # Generar PDF
-        # pdf_generator = PensionPDFGenerator()
-        # pdf_content = pdf_generator.generate_pdf(session_data)
+        # Generar URL de unsubscribe
+        token = generate_unsubscribe_token(request.email)
+        unsubscribe_url = f"{settings.FRONTEND_URL}/unsubscribe?token={token}"
 
-        # # Obtener template del email
-        # html_content = get_email_template(nombre)
+        # Obtener template del email con URL de unsubscribe
+        html_content = get_email_template(nombre, unsubscribe_url)
 
-        # # Enviar email
-        # email_sender = EmailSender()
-        # success = await email_sender.send_email(
-        #     recipient_email=request.email,
-        #     subject="Simulación de Pensión",
-        #     html_content=html_content,
-        #     pdf_content=pdf_content
-        # )
-
-        success = True
-
-        print("Sending email to: ", nombre)
-        print("Email: ", request.email)
+        # Enviar email
+        email_sender = EmailSender()
+        success = await email_sender.send_email(
+            recipient_email=request.email,
+            subject="Planificador de Pensión",
+            html_content=html_content,
+            pdf_content=pdf_content,
+            from_name="The Fullstack"
+        )
 
         if not success:
             raise HTTPException(status_code=500, detail="Error sending email")
 
-        # Actualizar el documento en MongoDB con el email y optin_comercial
-        update_result = await collection.update_one(
-            {"sessionId": request.session_id},
-            {
-                "$set": {
-                    "email": request.email,
-                    "optin_comercial": request.optin_comercial,
-                    "email_sent_date": datetime.utcnow()
+        # Obtener la colección newsletter
+        db = mongodb_client[settings.MONGODB_DB_NAME]
+        newsletter_collection = db['newsletter']
+
+        # Buscar si el email ya existe
+        existing_subscriber = await newsletter_collection.find_one({"email": request.email})
+
+        if existing_subscriber:
+            # Actualizar el sessionId si el email ya existe
+            await newsletter_collection.update_one(
+                {"email": request.email},
+                {
+                    "$set": {
+                        "sessionId": request.session_id,
+                        "updated_at": datetime.utcnow()
+                    }
                 }
+            )
+        else:
+            # Crear nuevo registro si el email no existe
+            await newsletter_collection.insert_one({
+                "email": request.email,
+                "sessionId": request.session_id,
+                "optin_comercial": request.optin_comercial,
+                "created_at": datetime.utcnow(),
+                "updated_at": datetime.utcnow()
+            })
+
+        return {
+            "message": "Email sent successfully",
+            "details": {
+                "email": request.email,
+                "sent_date": datetime.utcnow(),
+                "optin_comercial": request.optin_comercial
             }
-        )
-
-        if update_result.modified_count == 0:
-            print(f"Warning: No se pudo actualizar el documento para sessionId: {request.session_id}")
-
-        return {"message": "Email sent successfully"}
+        }
 
     except HTTPException as e:
         raise e
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+# Función para generar token de unsubscribe
+def generate_unsubscribe_token(email: str) -> str:
+    payload = {
+        "email": email,
+        "exp": datetime.utcnow() + timedelta(days=30),
+        "type": "unsubscribe"
+    }
+    return jwt.encode(payload, settings.SECRET_KEY, algorithm="HS256")
+
+# Endpoint para generar URL de unsubscribe
+@app.get("/api/newsletter/unsubscribe-url/{email}")
+async def get_unsubscribe_url(email: str):
+    token = generate_unsubscribe_token(email)
+    unsubscribe_url = f"{settings.FRONTEND_URL}/unsubscribe?token={token}"
+    return {"unsubscribe_url": unsubscribe_url}
+
+class UnsubscribeRequest(BaseModel):
+    token: str
+
+@app.post("/api/newsletter/unsubscribe")
+async def process_unsubscribe(request: UnsubscribeRequest):
+    try:
+        # Decodificar y validar token
+        payload = jwt.decode(request.token, settings.SECRET_KEY, algorithms=["HS256"])
+        
+        if payload.get("type") != "unsubscribe":
+            raise HTTPException(status_code=400, detail="Token inválido")
+
+        email = payload.get("email")
+        
+        # Obtener la colección newsletter
+        db = mongodb_client[settings.MONGODB_DB_NAME]
+        newsletter_collection = db['newsletter']
+
+        # Buscar y eliminar el registro
+        result = await newsletter_collection.delete_one({"email": email})
+
+        if result.deleted_count == 0:
+            raise HTTPException(
+                status_code=404,
+                detail="Suscripción no encontrada"
+            )
+
+        return {
+            "message": "Te has dado de baja exitosamente",
+            "email": email
+        }
+
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        raise HTTPException(
+            status_code=400,
+            detail="Token inválido o expirado"
+        )
 

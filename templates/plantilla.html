@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Planificador Previsional</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: system-ui, -apple-system, sans-serif;
+        }
+
+        body {
+            background-color: #ffffff;
+            color: #1f2937;
+            margin: 0;
+            padding: 0;
+        }
+
+        .dashboard {
+            max-width: 21cm;
+            margin: 0 auto;
+            padding-top: 0.5rem;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .main-content {
+            flex: 1;
+            margin-bottom: 2rem;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+            padding-top: 0.5rem;
+        }
+
+        .header h1 {
+            font-size: 1.25rem;
+            font-weight: 600;
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            font-size: 0.875rem;
+            gap: 1.5rem;
+        }
+
+        .user-avatar {
+            width: 2rem;
+            height: 2rem;
+            background-color: #e5e7eb;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+        }
+
+        .user-avatar svg {
+            width: 1.5rem;
+            height: 1.5rem;
+            color: #9ca3af;
+        }
+
+        .metrics-grid {
+            display: flex;
+            justify-content: space-between;
+            gap: 1rem;
+            margin-bottom: 1rem;
+            width: 100%;
+        }
+
+        .metric-card {
+            flex: 1;
+            background: #f3f4f6;
+            border-radius: 0.5rem;
+            padding: 1rem;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+            min-width: 0;
+            max-width: calc(33.333% - 0.67rem);
+        }
+
+        .metric-title {
+            color: #4b5563;
+            font-size: 0.75rem;
+            margin-bottom: 0.25rem;
+        }
+
+        .metric-value {
+            color: #111827;
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin-bottom: 0.25rem;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .metric-subtitle {
+            font-size: 0.75rem;
+        }
+
+        .success-text {
+            color: #059669;
+        }
+
+        .info-text {
+            color: #2563eb;
+        }
+
+        .warning-text {
+            color: #dc2626;
+        }
+
+        .content-grid {
+            display: flex;
+            justify-content: space-between;
+            gap: 1rem;
+            margin-bottom: 1rem;
+            width: 100%;
+        }
+
+        .info-card {
+            flex: 1;
+            background: #f3f4f6;
+            border-radius: 0.5rem;
+            padding: 1rem;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+            min-width: 0;
+            max-width: calc(50% - 0.5rem);
+        }
+
+        .info-card h2,
+        .advice-card h2 {
+            font-size: 1rem;
+            margin-bottom: 0.75rem;
+        }
+
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.5rem 0;
+            border-bottom: 1px solid #e5e7eb;
+            font-size: 0.875rem;
+        }
+
+        .info-label {
+            color: #4b5563;
+        }
+
+        .comparative-section {
+            margin-top: 0.75rem;
+        }
+
+        .comparative-title {
+            color: #4b5563;
+            font-size: 0.75rem;
+            margin-bottom: 0.75rem;
+        }
+
+        .comparison-container {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .comparison-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .comparison-label {
+            width: 80px;
+            font-size: 0.75rem;
+            color: #4b5563;
+        }
+
+        .comparison-bar-container {
+            flex-grow: 1;
+            height: 8px;
+            background-color: #e5e7eb;
+            border-radius: 4px;
+            overflow: hidden;
+            margin: 0.5rem 0;
+        }
+
+        .pre-reforma-bar {
+            height: 100%;
+            background-color: #9ca3af;
+            /* Gris */
+            border-radius: 4px;
+        }
+
+        .post-reforma-bar {
+            height: 100%;
+            background-color: #3b82f6;
+            /* Azul */
+            border-radius: 4px;
+        }
+
+        .ideal-bar {
+            height: 100%;
+            background-color: #10b981;
+            /* Verde */
+            border-radius: 4px;
+        }
+
+        .comparison-value {
+            width: 80px;
+            text-align: right;
+            font-weight: 500;
+            font-size: 0.75rem;
+        }
+
+        .breakdown-section {
+            margin-top: 1rem;
+        }
+
+        .breakdown-title {
+            font-size: 0.875rem;
+            color: #374151;
+            margin-bottom: 0.5rem;
+        }
+
+        .breakdown-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.5rem 0;
+            border-bottom: 1px solid #e5e7eb;
+            font-size: 0.75rem;
+        }
+
+        .breakdown-item:last-child {
+            border-bottom: none;
+        }
+
+        .breakdown-label {
+            color: #4b5563;
+            flex: 1;
+            padding-right: 0.5rem;
+        }
+
+        .breakdown-value {
+            color: #111827;
+            font-weight: 500;
+            text-align: right;
+        }
+
+        .advice-card {
+            margin-top: 1rem;
+            width: 100%;
+            padding: 1.5rem 2rem;
+        }
+
+        .advice-subtitle {
+            color: #4b5563;
+            font-size: 0.75rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .advice-list {
+            list-style-position: inside;
+            padding-left: 0.5rem;
+        }
+
+        .advice-list li {
+            margin-bottom: 1rem;
+            line-height: 1.4;
+            font-size: 0.8rem;
+        }
+
+        .advice-list.numbered {
+            list-style-type: none;
+            counter-reset: item;
+        }
+
+        .advice-list.numbered li {
+            counter-increment: item;
+            display: flex;
+            align-items: flex-start;
+            margin-bottom: 1rem;
+        }
+
+        .advice-list.numbered li::before {
+            content: counter(item) ".";
+            font-weight: bold;
+            margin-right: 0.5rem;
+            min-width: 1.25rem;
+            color: #2563eb;
+            font-size: 0.9rem;
+        }
+
+        .dashboard-footer {
+            break-before: page;
+            margin-top: 0;
+            padding: 1rem;
+            background-color: #f3f4f6;
+            border-radius: 0.5rem;
+            font-size: 0.75rem;
+            color: #4b5563;
+        }
+
+        .dashboard-footer p {
+            margin-bottom: 0.75rem;
+        }
+
+        .dashboard-footer ul {
+            list-style-type: disc;
+            padding-left: 1.5rem;
+            margin-bottom: 0.75rem;
+        }
+
+        .dashboard-footer li {
+            margin-bottom: 0.5rem;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="dashboard">
+        <div class="main-content">
+            <header class="header">
+                <h1>Planificador Previsional</h1>
+                <div class="user-info">
+                    <div class="user-name">
+                        <span>{{ nombre }},
+                            {%- if meses > 0 -%}
+                            {{ edad }} años {{ meses }} meses
+                            {%- else -%}
+                            {{ edad }} años
+                            {%- endif -%}
+                        </span>
+                    </div>
+                    <div class="user-avatar">
+                        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M20 21V19C20 16.7909 18.2091 15 16 15H8C5.79086 15 4 16.7909 4 19V21"
+                                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                            <path
+                                d="M12 11C14.2091 11 16 9.20914 16 7C16 4.79086 14.2091 3 12 3C9.79086 3 8 4.79086 8 7C8 9.20914 9.79086 11 12 11Z"
+                                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                        </svg>
+                    </div>
+                </div>
+            </header>
+
+            <div class="metrics-grid">
+                <div class="metric-card">
+                    <div class="metric-title">Pensión Total Post-Reforma</div>
+                    <div class="metric-value">${{ '{:,.0f}'.format(pension_post_reforma).replace(',', '.') }}</div>
+                    <div class="metric-subtitle success-text">↑ {{ incremento_porcentaje }}% incremento desde
+                        pre-reforma
+                    </div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-title">Saldo Final Cuenta Individual</div>
+                    <div class="metric-value">${{ '{:,.0f}'.format(saldo_cuenta).replace(',', '.') }}</div>
+                    <div class="metric-subtitle info-text">↑ {{ rentabilidad_porcentaje }}% rentabilidad acumulada</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-title">Brecha Mensual</div>
+                    <div class="metric-value">${{ '{:,.0f}'.format(brecha_mensual).replace(',', '.') }}</div>
+                    <div class="metric-subtitle">Versus pensión objetivo de ${{
+                        '{:,.0f}'.format(pension_objetivo).replace(',', '.') }}</div>
+                </div>
+            </div>
+
+            <div class="content-grid">
+                <div class="info-card">
+                    <h2>Información Personal</h2>
+                    <div class="info-row">
+                        <span class="info-label">Edad de Jubilación</span>
+                        <span>{{ edad_jubilacion }} años</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Expectativa de Vida</span>
+                        <span>
+                            {%- if expectativa_meses > 0 -%}
+                            {{ expectativa_anos }} años {{ expectativa_meses }} meses
+                            {%- else -%}
+                            {{ expectativa_anos }} años
+                            {%- endif -%}
+                        </span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Salario Mensual Bruto</span>
+                        <span>${{ '{:,.0f}'.format(salario_mensual).replace(',', '.') }}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Estudios</span>
+                        <span>{{ nivel_estudios }}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Pensión Ideal Hoy</span>
+                        <span>${{ '{:,.0f}'.format(pension_ideal_hoy).replace(',', '.') }}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Pensión Ideal al Jubilar</span>
+                        <span>${{ '{:,.0f}'.format(pension_ideal_jubilar).replace(',', '.') }}</span>
+                    </div>
+                </div>
+
+                <div class="info-card">
+                    <h2>Análisis Comparativo</h2>
+                    <div class="comparative-section">
+                        <div class="comparative-title">Pre-Reforma vs Post-Reforma vs Ideal</div>
+                        <div class="comparison-container">
+                            <div class="comparison-item">
+                                <div class="comparison-label">Pre</div>
+                                <div class="comparison-bar-container">
+                                    <div class="pre-reforma-bar"
+                                        style="width: {{ (pension_pre_reforma / pension_ideal_jubilar * 100)|int }}%">
+                                    </div>
+                                </div>
+                                <div class="comparison-value">${{ '{:,.0f}'.format(pension_pre_reforma).replace(',',
+                                    '.') }}</div>
+                            </div>
+                            <div class="comparison-item">
+                                <div class="comparison-label">Post</div>
+                                <div class="comparison-bar-container">
+                                    <div class="post-reforma-bar"
+                                        style="width: {{ (pension_post_reforma / pension_ideal_jubilar * 100)|int }}%">
+                                    </div>
+                                </div>
+                                <div class="comparison-value">${{ '{:,.0f}'.format(pension_post_reforma).replace(',',
+                                    '.') }}</div>
+                            </div>
+                            <div class="comparison-item">
+                                <div class="comparison-label">Ideal</div>
+                                <div class="comparison-bar-container">
+                                    <div class="ideal-bar" style="width: 100%"></div>
+                                </div>
+                                <div class="comparison-value">${{ '{:,.0f}'.format(pension_ideal_jubilar).replace(',',
+                                    '.') }}</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="breakdown-section">
+                        <div class="breakdown-title">Desglose Pensión Post-Reforma</div>
+                        <div class="breakdown-item">
+                            <span class="breakdown-label">Pensión Mensual Base</span>
+                            <span class="breakdown-value">${{ '{:,.0f}'.format(pension_base).replace(',', '.') }}</span>
+                        </div>
+                        {% if genero == 'F' %}
+                        <div class="breakdown-item">
+                            <span class="breakdown-label">Compensación por Expectativa de Vida</span>
+                            <span class="breakdown-value">${{ '{:,.0f}'.format(compensacion_expectativa).replace(',',
+                                '.') }}</span>
+                        </div>
+                        {% endif %}
+                        <div class="breakdown-item">
+                            <span class="breakdown-label">Cuota Fondo Autónomo de Protección Previsional</span>
+                            <span class="breakdown-value">${{ '{:,.0f}'.format(cuota_fondo).replace(',', '.') }}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="advice-card">
+                <h2>Consejos Personalizados</h2>
+                <p class="advice-subtitle">A continuación te presentamos algunos consejos generados por IA para
+                    ayudarte a alcanzar tu pensión ideal.</p>
+                <ol class="advice-list numbered">
+                    {% for consejo in consejos %}
+                    <li>{{ consejo }}</li>
+                    {% endfor %}
+                </ol>
+            </div>
+        </div>
+
+        <footer class="dashboard-footer">
+            <p>Las cifras presentadas son estimaciones basadas en supuestos. El monto real a recibir en la jubilación
+                puede variar significativamente debido a diversos factores, tales como condiciones macroeconómicas
+                (inflación, tasas de interés, crecimiento económico), variables microeconómicas, fluctuaciones en los
+                ingresos, cambios en la normativa y otros elementos relevantes.</p>
+            <p>Las estimaciones del presente informe están realizadas bajo los mismos supuestos que se utilizaron para
+                realizar los estudios de la actual ley de pensiones que son los siguientes:</p>
+            <ul>
+                <li>Crecimiento de salarios de 1,25% de acuerdo con proyección de la OCDE.</li>
+                <li>Rentabilidad del fondo equivalente a 3,91%.</li>
+                <li>Retornos de los fondos de pensiones en base al promedio histórico y que la tasa implícita de las
+                    rentas vitalicias es de 3,11%.</li>
+            </ul>
+        </footer>
+    </div>
+</body>
+
+</html>

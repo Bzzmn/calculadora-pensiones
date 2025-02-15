@@ -1,21 +1,14 @@
-from setuptools import setup, Extension
+from setuptools import setup, find_packages
 from Cython.Build import cythonize
-import numpy
-
-extensions = [
-    Extension(
-        "calculator.pension_core",
-        ["calculator/pension.py"],
-        include_dirs=[numpy.get_include()]
-    )
-]
 
 setup(
     name="pension-calculator",
-    ext_modules=cythonize(extensions, compiler_directives={
+    packages=find_packages(),
+    ext_modules=cythonize([
+        "calculator/pension_core.py"
+    ], compiler_directives={
         'language_level': "3",
-        'boundscheck': False,
-        'wraparound': False,
-        'initializedcheck': False,
-    })
+        'always_allow_keywords': True
+    }),
+    zip_safe=False
 ) 

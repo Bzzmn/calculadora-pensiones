@@ -15,9 +15,10 @@ class EmailSender:
         self.smtp_password = os.getenv('SMTP_PASSWORD')
         self.sender_email = os.getenv('SENDER_EMAIL')
 
-    async def send_email(self, recipient_email, subject, html_content, pdf_content):
+
+    async def send_email(self, recipient_email, subject, html_content, pdf_content, from_name):
         msg = MIMEMultipart()
-        msg['From'] = self.sender_email
+        msg['From'] = f"{from_name} <{self.sender_email}>"
         msg['To'] = recipient_email
         msg['Subject'] = subject
 

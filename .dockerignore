@@ -62,3 +62,6 @@ logs/
 # Documentation
 docs/
 *.md 
+
+.pdfs/
+

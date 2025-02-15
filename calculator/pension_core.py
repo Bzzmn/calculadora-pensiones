@@ -363,16 +363,12 @@ def calculate_pension_post_reform(current_age: float,
     else:
         pgu_applied = False
 
-    
-    # Calcular pensión total incluyendo BSPA
-    total_pension = monthly_pension + additional_pension + monthly_BSPA
-
 
     # Calcular la rentabilidad total de la cuenta individual
     total_returns = accumulated_returns + initial_estimated_returns
 
     return (balance,                  # saldo_cuenta_individual
-            total_pension,            # pension_total
+            monthly_pension,            # pension_total
             additional_pension,       # pension_adicional
             balance_FAPP,            # balance_fapp
             monthly_BSPA,            # bono_seguridad_previsional
