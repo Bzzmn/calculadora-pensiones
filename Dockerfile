@@ -22,6 +22,11 @@ FROM python:3.9-slim
 
 WORKDIR /app
 
+# Instalar dependencias del sistema incluyendo wkhtmltopdf
+RUN apt-get update && apt-get install -y \
+    wkhtmltopdf \
+    && rm -rf /var/lib/apt/lists/*
+
 # Instalar uv
 RUN pip install uv
 
