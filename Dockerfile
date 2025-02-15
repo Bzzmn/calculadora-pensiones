@@ -34,6 +34,7 @@ COPY requirements.txt .
 COPY main.py .
 COPY config.py .
 COPY utils/ ./utils/
+COPY templates/ ./templates/
 
 # Instalar dependencias usando uv
 RUN uv pip install --system -r requirements.txt
