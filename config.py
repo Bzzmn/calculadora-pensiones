@@ -46,7 +46,7 @@ class Settings(BaseSettings):
 
     @validator("ALLOWED_HOSTS", pre=True)
     def parse_allowed_hosts(cls, v) -> List[str]:
-        """Convierte JSON string de hosts a lista"""
+        """Convierte string de hosts a lista"""
         hosts = []
         
         # Agregar hosts por defecto para desarrollo local
@@ -57,16 +57,10 @@ class Settings(BaseSettings):
             ])
         
         # Leer hosts desde variable de entorno
-        allowed_hosts_str = os.getenv("ALLOWED_HOSTS", "[]")
-        try:
-            # Limpiar la cadena de comillas simples si existen
-            allowed_hosts_str = allowed_hosts_str.replace("'", '"')
-            json_hosts = json.loads(allowed_hosts_str)
-            if isinstance(json_hosts, list):
-                hosts.extend(json_hosts)
-        except json.JSONDecodeError as e:
-            print(f"Error parsing ALLOWED_HOSTS JSON: {e}")
-            print(f"Raw value: {allowed_hosts_str}")
+        allowed_hosts = os.getenv("ALLOWED_HOSTS", "")
+        if allowed_hosts:
+            # Dividir por comas y limpiar espacios
+            hosts.extend([h.strip() for h in allowed_hosts.split(",") if h.strip()])
         
         # Asegurar que el frontend URL esté incluido
         frontend_url = os.getenv("THEFULLSTACK_FRONTEND_URL")
