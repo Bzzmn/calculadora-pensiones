@@ -42,10 +42,10 @@ class Settings(BaseSettings):
     class Config:
         env_file = ".env"
         case_sensitive = True
-        extra = "ignore"  # Ignora variables de entorno adicionales
+        extra = "ignore"
 
     @validator("ALLOWED_HOSTS", pre=True)
-    def parse_allowed_hosts(cls, v: str | List[str]) -> List[str]:
+    def parse_allowed_hosts(cls, v) -> List[str]:
         """Convierte JSON string de hosts a lista"""
         hosts = []
         
@@ -57,20 +57,23 @@ class Settings(BaseSettings):
             ])
         
         # Leer hosts desde variable de entorno
-        additional_hosts = os.getenv("ALLOWED_HOSTS")
-        if additional_hosts:
-            try:
-                json_hosts = json.loads(additional_hosts)
-                if isinstance(json_hosts, list):
-                    hosts.extend(json_hosts)
-            except json.JSONDecodeError:
-                print("Error parsing ALLOWED_HOSTS JSON")
+        allowed_hosts_str = os.getenv("ALLOWED_HOSTS", "[]")
+        try:
+            # Limpiar la cadena de comillas simples si existen
+            allowed_hosts_str = allowed_hosts_str.replace("'", '"')
+            json_hosts = json.loads(allowed_hosts_str)
+            if isinstance(json_hosts, list):
+                hosts.extend(json_hosts)
+        except json.JSONDecodeError as e:
+            print(f"Error parsing ALLOWED_HOSTS JSON: {e}")
+            print(f"Raw value: {allowed_hosts_str}")
         
         # Asegurar que el frontend URL esté incluido
         frontend_url = os.getenv("THEFULLSTACK_FRONTEND_URL")
         if frontend_url:
             hosts.append(frontend_url)
         
-        return list(set(hosts))  # Eliminar duplicados
+        # Eliminar duplicados y valores vacíos
+        return list(set(host for host in hosts if host))
 
 settings = Settings() 
