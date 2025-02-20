@@ -15,12 +15,12 @@ build: update-requirements compile
 run-dev:
 	docker run -d \
 		--name $(CONTAINER_NAME) \
-		-p $(DEV_PORT):80 \
+		-p $(DEV_PORT):8000 \
 		-v $(PWD)/.env:/app/.env \
-		-v $(PWD)/main.py:/app/main.py \
+		-v $(PWD)/app:/app/app \
 		-v $(PWD)/config.py:/app/config.py \
-		-v $(PWD)/utils:/app/utils \
 		-e ENVIRONMENT=development \
+		-e PORT=8000 \
 		$(IMAGE_NAME)
 
 # Ejecutar el contenedor en producción
@@ -29,6 +29,7 @@ run-prod:
 		--name $(CONTAINER_NAME) \
 		-p $(PROD_PORT):80 \
 		--restart unless-stopped \
+		-e PORT=80 \
 		$(IMAGE_NAME)
 
 # Detener y eliminar el contenedor
@@ -38,7 +39,7 @@ stop:
 
 # Limpiar imágenes y contenedores
 clean: stop clean-build
-	docker rmi $(IMAGE_NAME) || true
+	docker rmi -f $(IMAGE_NAME) || true
 
 # Reconstruir y reiniciar para desarrollo
 all-dev: clean build run-dev
@@ -60,11 +61,31 @@ compile:
 
 # Agregar clean-build para limpiar archivos de compilación
 clean-build:
-	rm -rf build/
-	rm -f calculator/*.so
-	rm -f calculator/*.c
+	sudo rm -rf build/
+	sudo rm -f app/calculator/*.so
+	sudo rm -f app/calculator/*.c
+	sudo rm -f app/calculator/*.pyd
+	sudo rm -f app/calculator/*.pyc
+	sudo find . -type d -name "__pycache__" -exec rm -rf {} +
 
 # Actualizar requirements.txt desde pyproject.toml
 update-requirements:
 	pip install toml
 	python -c 'import toml; f = open("pyproject.toml"); p = toml.load(f); print("\n".join(p["project"]["dependencies"]))' > requirements.txt
+
+# Limpiar y reinstalar todo el entorno
+clean-all:
+	sudo rm -rf .venv/
+	sudo rm -rf build/
+	sudo rm -rf dist/
+	sudo rm -rf *.egg-info/
+	sudo find . -type d -name "__pycache__" -exec rm -rf {} +
+	sudo find . -type f -name "*.pyc" -delete
+	sudo find . -type f -name "*.so" -delete
+	sudo find . -type f -name "*.c" -delete
+	/usr/bin/python3.11 -m venv .venv
+	. .venv/bin/activate && \
+	pip install uv && \
+	uv pip install --upgrade pip && \
+	uv pip install -e . && \
+	make compile

@@ -37,4 +37,4 @@ dependencies = [
 ]
 
 [tool.setuptools]
-packages = ["pensionfi"]
+packages = ["app"]

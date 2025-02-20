@@ -1,5 +1,5 @@
 # Build stage
-FROM python:3.9-slim as builder
+FROM python:3.11-slim AS builder
 
 WORKDIR /app
 
@@ -12,13 +12,14 @@ RUN apt-get update && apt-get install -y \
 
 # Copiar archivos necesarios para la compilación
 COPY setup.py .
-COPY calculator/ ./calculator/
+COPY pyproject.toml .
+COPY app/ ./app/
 
 # Compilar
 RUN python setup.py build_ext --inplace
 
 # Runtime stage
-FROM python:3.9-slim
+FROM python:3.11-slim
 
 WORKDIR /app
 
@@ -31,24 +32,23 @@ RUN apt-get update && apt-get install -y \
 RUN pip install uv
 
 # Copiar archivos compilados desde el builder
-COPY --from=builder /app/calculator/*.so ./calculator/
-COPY --from=builder /app/calculator/__init__.py ./calculator/
+COPY --from=builder /app/app/calculator/*.so ./app/calculator/
+COPY --from=builder /app/app/calculator/*.c ./app/calculator/
+COPY --from=builder /app/app/calculator/__init__.py ./app/calculator/
 
 # Copiar archivos de la aplicación
-COPY requirements.txt .
-COPY main.py .
+COPY pyproject.toml .
+COPY app/ ./app/
 COPY config.py .
-COPY utils/ ./utils/
-COPY templates/ ./templates/
+COPY entrypoint.sh .
 
-# Instalar dependencias usando uv
-RUN uv pip install --system -r requirements.txt
+# Instalar dependencias usando uv con --system
+RUN uv pip install --system -e .
 
 # Exponer el puerto
-EXPOSE 80
+EXPOSE 8000
 
-# Script para manejar el inicio según el ambiente
-COPY entrypoint.sh .
+# Hacer ejecutable el entrypoint
 RUN chmod +x entrypoint.sh
 
 ENTRYPOINT ["./entrypoint.sh"]

@@ -154,18 +154,29 @@ POST /calculate_pension
 
 ```
 pension-calculator/
-├── calculator/
+├── app/
 │   ├── __init__.py
-│   └── pension.py
-├── .github/
-│   └── workflows/
-│       └── docker-build-deploy.yml
+│   ├── calculator/
+│   │   ├── __init__.py
+│   │   └── pension_core.py
+│   ├── templates/
+│   │   └── plantilla.html
+│   ├── utils/
+│   │   ├── __init__.py
+│   │   ├── email_sender.py
+│   │   ├── email_template.py
+│   │   ├── pdf_generator.py
+│   │   └── pension_advisor.py
+│   └── main.py
+├── .env
+├── .gitignore
+├── config.py
 ├── Dockerfile
+├── entrypoint.sh
 ├── Makefile
+├── pyproject.toml
 ├── README.md
-├── main.py
 ├── requirements.txt
-├── requirements-build.txt
 └── setup.py
 ```
 

@@ -1,9 +1,9 @@
 import os
-from fastapi import FastAPI, HTTPException, Depends, Path
+from fastapi import FastAPI, HTTPException, Depends, Path, status
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, EmailStr
 from typing import Optional, Dict, Any
-from calculator.pension_core import (
+from app.calculator.pension_core import (
     calculate_pension_pre_reform, 
     calculate_pension_post_reform,
     calculate_future_value,
@@ -17,10 +17,11 @@ from motor.motor_asyncio import AsyncIOMotorClient
 from datetime import datetime, timedelta
 from uuid import UUID
 from config import settings
-from utils.pdf_generator import PensionPDFGenerator
-from utils.email_template import get_email_template
-from utils.email_sender import EmailSender
+from app.utils.pdf_generator import PensionPDFGenerator
+from app.utils.email_template import get_email_template
+from app.utils.email_sender import EmailSender
 import jwt
+import logging
 
 # Crear la instancia de FastAPI con el prefijo /api
 app = FastAPI(
@@ -32,10 +33,11 @@ app = FastAPI(
 # Configurar CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Configura esto según tus necesidades
+    allow_origins=settings.ALLOWED_HOSTS,
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE"],
     allow_headers=["*"],
+    expose_headers=["*"],
 )
 
 # Configuración MongoDB
@@ -349,7 +351,8 @@ async def send_pdf(request: EmailRequest):
 
         # Generar URL de unsubscribe
         token = generate_unsubscribe_token(request.email)
-        unsubscribe_url = f"{settings.FRONTEND_URL}/unsubscribe?token={token}"
+        unsubscribe_url = f"{settings.THEFULLSTACK_FRONTEND_URL}/unsubscribe?token={token}"
+        print(f"Unsubscribe URL: {unsubscribe_url}")
 
         # Obtener template del email con URL de unsubscribe
         html_content = get_email_template(nombre, unsubscribe_url)
@@ -416,28 +419,49 @@ def generate_unsubscribe_token(email: str) -> str:
         "exp": datetime.utcnow() + timedelta(days=30),
         "type": "unsubscribe"
     }
+
     return jwt.encode(payload, settings.SECRET_KEY, algorithm="HS256")
 
 # Endpoint para generar URL de unsubscribe
 @app.get("/api/newsletter/unsubscribe-url/{email}")
 async def get_unsubscribe_url(email: str):
     token = generate_unsubscribe_token(email)
-    unsubscribe_url = f"{settings.FRONTEND_URL}/unsubscribe?token={token}"
+    unsubscribe_url = f"{settings.THEFULLSTACK_FRONTEND_URL}/unsubscribe?token={token}"
     return {"unsubscribe_url": unsubscribe_url}
 
 class UnsubscribeRequest(BaseModel):
     token: str
 
-@app.post("/api/newsletter/unsubscribe")
+@app.post("/api/newsletter/unsubscribe", status_code=status.HTTP_200_OK)
 async def process_unsubscribe(request: UnsubscribeRequest):
     try:
         # Decodificar y validar token
-        payload = jwt.decode(request.token, settings.SECRET_KEY, algorithms=["HS256"])
-        
-        if payload.get("type") != "unsubscribe":
-            raise HTTPException(status_code=400, detail="Token inválido")
+        try:
+            payload = jwt.decode(request.token, settings.SECRET_KEY, algorithms=["HS256"])
+        except jwt.ExpiredSignatureError:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Token ha expirado"
+            )
+        except jwt.InvalidTokenError:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Token inválido"
+            )
 
-        email = payload.get("email")
+        # Validar tipo de token
+        if payload.get("type") != "unsubscribe":
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Tipo de token inválido"
+            )
+
+        email: Optional[str] = payload.get("email")
+        if not email:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Email no encontrado en el token"
+            )
         
         # Obtener la colección newsletter
         db = mongodb_client[settings.MONGODB_DB_NAME]
@@ -447,21 +471,25 @@ async def process_unsubscribe(request: UnsubscribeRequest):
         result = await newsletter_collection.delete_one({"email": email})
 
         if result.deleted_count == 0:
+            logging.warning(f"Intento de desuscripción para email no suscrito: {email}")
             raise HTTPException(
-                status_code=404,
-                detail="Suscripción no encontrada"
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Email no encontrado en la lista de suscripción"
             )
 
+        logging.info(f"Desuscripción exitosa para: {email}")
         return {
-            "message": "Te has dado de baja exitosamente",
+            "status": "success",
+            "message": "Te has dado de baja exitosamente de nuestra lista de correos.",
             "email": email
         }
 
-    except HTTPException as e:
-        raise e
+    except HTTPException as he:
+        raise he
     except Exception as e:
+        logging.error(f"Error inesperado en desuscripción: {str(e)}")
         raise HTTPException(
-            status_code=400,
-            detail="Token inválido o expirado"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Error interno del servidor"
         )
 
