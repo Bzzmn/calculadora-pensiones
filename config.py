@@ -37,10 +37,7 @@ class Settings(BaseSettings):
     SECRET_KEY: str = os.getenv("SECRET_KEY")
 
     # Agregar ALLOWED_HOSTS como lista
-    ALLOWED_HOSTS: List[str] = [
-        "http://localhost:3000",
-        "http://localhost:8000"
-    ]
+    ALLOWED_HOSTS: List[str] = []
 
     class Config:
         env_file = ".env"
@@ -50,12 +47,16 @@ class Settings(BaseSettings):
     @validator("ALLOWED_HOSTS", pre=True)
     def parse_allowed_hosts(cls, v: str | List[str]) -> List[str]:
         """Convierte JSON string de hosts a lista"""
-        hosts = [
-            "http://localhost:3000",
-            "http://localhost:8000",
-            os.getenv("THEFULLSTACK_FRONTEND_URL", "http://localhost:3000")
-        ]
+        hosts = []
         
+        # Agregar hosts por defecto para desarrollo local
+        if os.getenv("ENVIRONMENT") == "development":
+            hosts.extend([
+                "http://localhost:3000",
+                "http://localhost:8000"
+            ])
+        
+        # Leer hosts desde variable de entorno
         additional_hosts = os.getenv("ALLOWED_HOSTS")
         if additional_hosts:
             try:
@@ -63,7 +64,12 @@ class Settings(BaseSettings):
                 if isinstance(json_hosts, list):
                     hosts.extend(json_hosts)
             except json.JSONDecodeError:
-                pass
+                print("Error parsing ALLOWED_HOSTS JSON")
+        
+        # Asegurar que el frontend URL esté incluido
+        frontend_url = os.getenv("THEFULLSTACK_FRONTEND_URL")
+        if frontend_url:
+            hosts.append(frontend_url)
         
         return list(set(hosts))  # Eliminar duplicados
 
