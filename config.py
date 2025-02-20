@@ -36,38 +36,17 @@ class Settings(BaseSettings):
     THEFULLSTACK_FRONTEND_URL: str = os.getenv("THEFULLSTACK_FRONTEND_URL", "http://localhost:3000")
     SECRET_KEY: str = os.getenv("SECRET_KEY")
 
-    # Agregar ALLOWED_HOSTS como lista
-    ALLOWED_HOSTS: List[str] = []
+    # Lista hardcodeada de hosts permitidos
+    ALLOWED_HOSTS: List[str] = [
+        "http://localhost:3000",
+        "http://localhost:8000",
+        "https://mipension.thefullstack.digital",
+        "https://calculadorapension.thefullstack.digital"
+    ]
 
     class Config:
         env_file = ".env"
         case_sensitive = True
         extra = "ignore"
-
-    @validator("ALLOWED_HOSTS", pre=True)
-    def parse_allowed_hosts(cls, v) -> List[str]:
-        """Convierte string de hosts a lista"""
-        hosts = []
-        
-        # Agregar hosts por defecto para desarrollo local
-        if os.getenv("ENVIRONMENT") == "development":
-            hosts.extend([
-                "http://localhost:3000",
-                "http://localhost:8000"
-            ])
-        
-        # Leer hosts desde variable de entorno
-        allowed_hosts = os.getenv("ALLOWED_HOSTS", "")
-        if allowed_hosts:
-            # Dividir por comas y limpiar espacios
-            hosts.extend([h.strip() for h in allowed_hosts.split(",") if h.strip()])
-        
-        # Asegurar que el frontend URL esté incluido
-        frontend_url = os.getenv("THEFULLSTACK_FRONTEND_URL")
-        if frontend_url:
-            hosts.append(frontend_url)
-        
-        # Eliminar duplicados y valores vacíos
-        return list(set(host for host in hosts if host))
 
 settings = Settings() 
