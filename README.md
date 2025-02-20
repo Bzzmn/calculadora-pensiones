@@ -1,6 +1,6 @@
 # Calculadora de Pensiones API
 
-API REST para calcular estimaciones de pensiones bajo los sistemas pre-reforma y post-reforma de pensiones en Chile.
+API REST para calcular estimaciones de pensiones bajo los sistemas pre-reforma y post-reforma de pensiones en Chile (2025).
 
 ## 🚀 Características
 
@@ -199,3 +199,77 @@ Las contribuciones son bienvenidas. Por favor, abre un issue primero para discut
 3. Commit tus cambios (`git commit -m 'Add some AmazingFeature'`)
 4. Push a la rama (`git push origin feature/AmazingFeature`)
 5. Abre un Pull Request
+
+## 📊 Constantes y Fórmulas del Sistema
+
+### Constantes Principales
+- WORKER_RATE = 0.10 (Aporte base del trabajador: 10%)
+- ANNUAL_INTEREST_RATE = 0.0311 (Rendimiento anual: 3.11%)
+- SALARY_GROWTH_RATE = 0.05 (Crecimiento salarial anual: 5%)
+- EQUIVALENT_FUND_RATE = 0.0391 (Rendimiento FAPP: 3.91%)
+- INFLATION_RATE = 0.03 (Inflación anual: 3%)
+- PENSION_MINIMA = 214,000 (Pensión mínima garantizada)
+
+### Tasas Derivadas
+- Tasa de interés mensual = (1 + ANNUAL_INTEREST_RATE)^(1/12) - 1
+- Tasa de crecimiento salarial trimestral = (1 + SALARY_GROWTH_RATE)^(1/4) - 1
+
+### Fórmulas Principales
+
+#### Saldo Acumulado Mensual
+
+```python
+balance = (balance + contribution) (1 + monthly_interest_rate)
+```
+
+#### Pensión Mensual Base
+
+```python
+monthly_pension = saldo_total / meses_expectativa_vida
+```
+
+donde meses_expectativa_vida = (expectativa_vida - edad_jubilacion) * 12
+
+#### Compensación Mujeres
+Para mujeres, se calcula una pensión adicional:
+
+```python
+pension_difference = (balance / meses_hombre) - (balance / meses_mujer)
+additional_pension = max(pension_difference, 10000)
+```
+
+#### Bono de Seguridad Previsional (BSPA)
+
+```python
+monthly_BSPA = balance_FAPP / 240 # Amortizado en 20 años
+```
+
+#### Valor Futuro Considerando Inflación
+
+```python
+future_value = present_value (1 + inflation_rate)^years
+
+### Expectativas de Vida
+- Hombres: 86.6 años
+- Mujeres: 90.8 años
+
+### Tasas Progresivas del Empleador
+El sistema post-reforma incluye tasas progresivas que aumentan con el tiempo:
+- Meses 0-4: 0%
+- Meses 5-12: 1%
+- Meses 13-24: 2%
+- Meses 25-36: 2.7%
+- Meses 37-48: 3.5%
+- Meses 49-60: 4.2%
+- Meses 61-72: 4.9%
+- Meses 73-84: 5.6%
+- Meses 85-96: 6.3%
+- Meses 97+: 7%
+
+
+## 📝 Notas Adicionales
+
+- El código está optimizado para rendimiento usando Cython
+- El código está documentado con comentarios y docstrings
+- El código está probado con pytest
+- Para simplificar el calculo no se consideran cargas familiares ni otros aportes como APV.
