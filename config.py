@@ -33,15 +33,13 @@ class Settings(BaseSettings):
     OPENAI_API_BASE: str | None = os.getenv("OPENAI_API_BASE")
 
     # Configuración de frontend
-    THEFULLSTACK_FRONTEND_URL: str = os.getenv("THEFULLSTACK_FRONTEND_URL", "http://localhost:3000")
+    THEFULLSTACK_FRONTEND_URL: str = os.getenv("THEFULLSTACK_FRONTEND_URL")
     SECRET_KEY: str = os.getenv("SECRET_KEY")
 
     # Lista hardcodeada de hosts permitidos
     ALLOWED_HOSTS: List[str] = [
-        "http://localhost:3000",
-        "http://localhost:8000",
         "https://mipension.thefullstack.digital",
-        "https://calculadorapension.thefullstack.digital"
+        "https://thefullstack.digital"
     ]
 
     class Config:
