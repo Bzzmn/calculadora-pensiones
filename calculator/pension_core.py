@@ -4,7 +4,7 @@ from datetime import datetime, date
 REFORM_START_DATE = date(2025, 2, 1)  # Fecha de inicio de la reforma
 WORKER_RATE = 0.10                    # Aporte del trabajador: 10%
 ANNUAL_INTEREST_RATE = 0.0311         # Rendimiento anual: 3.11%
-SALARY_GROWTH_RATE = 0.0125           # Crecimiento salarial anual: 1.25%
+SALARY_GROWTH_RATE = 0.05           # Crecimiento salarial anual: 5%
 EQUIVALENT_FUND_RATE = 0.0391         # Rendimiento anual del Fondo equivalente FAPP: 3.91%
 PENSION_MINIMA = 214000               # Pensión mínima garantizada
 INFLATION_RATE = 0.03      
@@ -202,9 +202,10 @@ def calculate_pension_pre_reform(current_age: float,
         sis = monthly_salary * 0.015
         total_sis += sis
         
-        # Actualización del sueldo cada 6 meses
-        if month % 6 == 5:
-            monthly_salary *= (1 + SALARY_GROWTH_RATE)
+        # Actualización del sueldo trimestralmente
+        if month % 3 == 2:
+            quarterly_growth_rate = (1 + SALARY_GROWTH_RATE) ** (1/4) - 1
+            monthly_salary *= (1 + quarterly_growth_rate)
     
     # 4. Estimar componentes del saldo actual (current_balance)
     years_contributed = current_age - 25 if current_age > 25 else 0
@@ -301,8 +302,9 @@ def calculate_pension_post_reform(current_age: float,
         balance_FAPP = (balance_FAPP + fapp_contribution) * (1 + monthly_equivalent_fund_rate)
 
         
-        if month % 6 == 5:
-            monthly_salary *= (1 + SALARY_GROWTH_RATE)
+        if month % 3 == 2:
+            quarterly_growth_rate = (1 + SALARY_GROWTH_RATE) ** (1/4) - 1
+            monthly_salary *= (1 + quarterly_growth_rate)
 
     # 3. Estimar componentes del saldo actual (current_balance)
     years_contributed = current_age - 25 if current_age > 25 else 0
